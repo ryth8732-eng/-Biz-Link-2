@@ -148,4 +148,327 @@
         <div id="login-screen" class="screen">
             <div style="margin-top: 100px; text-align: center;">
                 <h2 style="margin-bottom: 10px;">환영합니다!</h2>
-                <p style="color:#666; font-size:14px; 
+                <p style="color:#666; font-size:14px; margin-bottom: 40px;">Biz-Link 이용을 위해 로그인해주세요.</p>
+                
+                <!-- 구글 로그인 버튼 -->
+                <button class="btn google-btn" onclick="handleGoogleLogin()">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" width="20" height="20">
+                    Google 계정으로 시작하기
+                </button>
+            </div>
+            <p id="db-status" style="text-align: center; font-size: 11px; color: #888; margin-top:20px;">서버 연결 대기중...</p>
+        </div>
+
+        <!-- 3. 메인 홈 -->
+        <div id="home-screen" class="screen">
+            <div class="header">
+                Biz-Link 
+                <span style="font-size:12px; font-weight:normal;" id="user-name-display">Guest님</span>
+            </div>
+            
+            <!-- 메뉴 아이콘 -->
+            <div class="menu-grid">
+                <div class="menu-item" onclick="showBoard('질문')">❓ 질문</div>
+                <div class="menu-item" onclick="showBoard('소통')">💬 소통</div>
+                <div class="menu-item" onclick="showBoard('정보')">📢 정보</div>
+            </div>
+            
+            <h3>🔥 전체 최신글</h3>
+            <div class="board-list" id="home-post-list">
+                <!-- 전체 글 로딩 -->
+            </div>
+            
+            <div class="tab-bar">
+                <div class="tab-item" onclick="showScreen('home-screen')">🏠 홈</div>
+                <div class="tab-item">🔍 검색</div>
+                <div class="tab-item" onclick="goToWrite()">✏️ 글쓰기</div>
+                <div class="tab-item" onclick="handleLogout()">🚪 로그아웃</div>
+            </div>
+        </div>
+
+        <!-- 4. 게시판 상세 목록 -->
+        <div id="board-screen" class="screen">
+            <div class="header">
+                <span class="back-btn" onclick="showScreen('home-screen')">⬅</span>
+                <span id="board-title">게시판 이름</span>
+                <span style="width:20px"></span>
+            </div>
+            <div class="board-list" id="filtered-post-list"></div>
+            <button class="btn" onclick="goToWrite()" style="margin-top: 0;">이 게시판에 글쓰기</button>
+        </div>
+
+        <!-- 5. 글쓰기 화면 -->
+        <div id="write-screen" class="screen">
+            <div class="header">
+                <span class="back-btn" onclick="goBackFromWrite()">✖ 취소</span>
+                <span>글쓰기</span>
+                <span style="width: 20px;"></span>
+            </div>
+            <select id="post-category" class="input-field">
+                <option value="질문">❓ 질문 게시판</option>
+                <option value="소통">💬 소통 게시판</option>
+                <option value="정보">📢 정보 게시판</option>
+            </select>
+            <input type="text" id="post-title" class="input-field" placeholder="제목을 입력하세요">
+            <textarea id="post-content" class="input-field" style="height: 200px; resize: none;" placeholder="내용을 입력하세요."></textarea>
+            <button class="btn" onclick="submitPostWithAI()">등록하기</button>
+        </div>
+
+        <!-- 6. 상세 보기 -->
+        <div id="detail-screen" class="screen">
+            <div class="header">
+                <span class="back-btn" onclick="goBackFromDetail()">⬅</span>
+                <button id="translate-btn" onclick="translateContent()" style="background:none; border:none; font-size:20px;">🌏 번역</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <span id="detail-category" class="post-tag">카테고리</span>
+            </div>
+            <h2 id="detail-title" style="margin-top: 5px;">제목</h2>
+            <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+            <div id="detail-content" style="line-height: 1.6; min-height: 100px;">내용</div>
+        </div>
+
+    </div>
+
+    <!-- [JavaScript] Firebase & Logic -->
+    <script type="module">
+        // 1. Firebase Import (Auth 추가됨!)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+
+        // 2. Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyAHdHgTi3_eBM0kQSTHCKRLD86WSIJNs7s",
+            authDomain: "bize-8e4db.firebaseapp.com",
+            projectId: "bize-8e4db",
+            storageBucket: "bize-8e4db.firebasestorage.app",
+            messagingSenderId: "197857302682",
+            appId: "1:197857302682:web:7e5b38cb535719ec10a723",
+            measurementId: "G-K3B1RYMD2G"
+        };
+
+        // 3. Initialize
+        let db, auth;
+        let currentUser = null;
+
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            console.log("✅ Firebase Initialized");
+            
+            // 로그인 상태 감지 (새로고침 해도 로그인 유지)
+            onAuthStateChanged(auth, (user) => {
+                const statusEl = document.getElementById('db-status');
+                if (user) {
+                    // 로그인 된 상태
+                    currentUser = user;
+                    console.log("Logged in as:", user.displayName);
+                    document.getElementById('user-name-display').innerText = `${user.displayName}님`;
+                    window.showScreen('home-screen');
+                    window.loadAllPosts();
+                } else {
+                    // 로그아웃 된 상태
+                    if(statusEl) statusEl.innerText = "✅ 서버 연결됨. 로그인 필요.";
+                }
+            });
+
+        } catch (error) {
+            console.error("Firebase Error:", error);
+            alert("설정 오류: 콘솔을 확인하세요.");
+        }
+
+        // --- [구글 로그인 로직] ---
+        window.handleGoogleLogin = async () => {
+            const provider = new GoogleAuthProvider();
+            try {
+                const result = await signInWithPopup(auth, provider);
+                // 로그인 성공 시 onAuthStateChanged가 감지하여 홈으로 보냄
+                alert(`환영합니다! ${result.user.displayName}님`);
+            } catch (error) {
+                console.error(error);
+                alert("로그인 실패: " + error.message + "\n(Firebase Console에서 Google 로그인을 활성화했는지 확인하세요!)");
+            }
+        };
+
+        window.handleLogout = async () => {
+            if(confirm("로그아웃 하시겠습니까?")) {
+                await signOut(auth);
+                window.showScreen('login-screen');
+            }
+        };
+
+        // --- [네비게이션 & DB 로직 (기존 동일)] ---
+        let previousScreen = 'home-screen'; 
+        let allPostsData = []; 
+
+        window.showScreen = (screenId) => {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        };
+
+        window.goBackFromWrite = () => window.showScreen(previousScreen);
+        window.goBackFromDetail = () => window.showScreen(previousScreen);
+        
+        window.goToWrite = () => {
+            previousScreen = document.querySelector('.screen.active').id; 
+            window.showScreen('write-screen');
+        }
+
+        // DB 데이터 불러오기
+        async function fetchPostsFromDB() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "posts"));
+                allPostsData = [];
+                querySnapshot.forEach((doc) => {
+                    allPostsData.push({ id: doc.id, ...doc.data() });
+                });
+                allPostsData.sort((a,b) => b.date - a.date);
+                return allPostsData;
+            } catch (e) {
+                console.error("데이터 로드 실패", e);
+                return [];
+            }
+        }
+
+        window.loadAllPosts = async () => {
+            const list = document.getElementById('home-post-list');
+            list.innerHTML = "<div style='text-align:center; margin-top:20px;'>로딩중...</div>";
+            await fetchPostsFromDB(); 
+            list.innerHTML = "";
+            if(allPostsData.length === 0) {
+                list.innerHTML = "<div style='text-align:center; padding:20px; color:#999'>글이 없습니다.</div>";
+                return;
+            }
+            allPostsData.forEach(post => list.appendChild(createPostElement(post)));
+        };
+
+        window.showBoard = async (categoryName) => {
+            previousScreen = 'home-screen'; 
+            document.getElementById('board-title').innerText = categoryName + " 게시판";
+            window.showScreen('board-screen');
+            
+            const list = document.getElementById('filtered-post-list');
+            list.innerHTML = "<div style='text-align:center; margin-top:20px;'>로딩중...</div>";
+
+            if(allPostsData.length === 0) await fetchPostsFromDB();
+            list.innerHTML = "";
+            
+            const filtered = allPostsData.filter(post => post.category === categoryName);
+            if(filtered.length === 0) {
+                list.innerHTML = `<div style='text-align:center; padding:20px; color:#999'>${categoryName} 글이 없습니다.</div>`;
+            } else {
+                filtered.forEach(post => list.appendChild(createPostElement(post)));
+            }
+        };
+
+        function createPostElement(post) {
+            const div = document.createElement('div');
+            div.className = 'post-item';
+            let tagClass = '';
+            if(post.category === '정보') tagClass = 'tag-info';
+            else if(post.category === '질문') tagClass = 'tag-qna';
+            else tagClass = 'tag-chat';
+
+            div.innerHTML = `
+                <div style="display:flex; align-items:center; margin-bottom:4px;">
+                    <span class="post-tag ${tagClass}">${post.category}</span>
+                    <strong style="font-size:14px;">${post.title}</strong>
+                </div>
+                <div style="font-size:12px; color:#666; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    ${post.content}
+                </div>
+            `;
+            div.onclick = () => openDetail(post);
+            return div;
+        }
+
+        // 글쓰기 & 저장
+        const BAD_WORDS = ['바보', '멍청이', 'shibal', 'hate', 'stupid'];
+
+        window.submitPostWithAI = async () => {
+            const category = document.getElementById('post-category').value;
+            const title = document.getElementById('post-title').value;
+            const content = document.getElementById('post-content').value;
+
+            if(!title || !content) return alert("내용을 입력하세요.");
+            document.getElementById('ai-loading').style.display = 'flex';
+
+            setTimeout(async () => {
+                const isUnsafe = BAD_WORDS.some(word => content.includes(word) || title.includes(word));
+                if(isUnsafe) {
+                    document.getElementById('ai-loading').style.display = 'none';
+                    alert("🚨 [차단됨] 비방/욕설이 감지되었습니다.");
+                } else {
+                    try {
+                        await addDoc(collection(db, "posts"), {
+                            category: category,
+                            title: title,
+                            content: content,
+                            date: Date.now(), 
+                            author: currentUser ? currentUser.displayName : "익명", // 작성자 실명 저장
+                            uid: currentUser ? currentUser.uid : "anon"
+                        });
+                        alert("✅ 저장 완료!");
+                        document.getElementById('post-title').value = "";
+                        document.getElementById('post-content').value = "";
+                        document.getElementById('ai-loading').style.display = 'none';
+
+                        if(previousScreen === 'board-screen') showBoard(category);
+                        else {
+                            window.showScreen('home-screen');
+                            loadAllPosts();
+                        }
+                    } catch (e) {
+                        document.getElementById('ai-loading').style.display = 'none';
+                        console.error(e);
+                        alert("저장 실패 (Console 확인)");
+                    }
+                }
+            }, 1000);
+        };
+
+        // 상세 & 번역
+        let currentContent = "";
+        let isTranslated = false;
+
+        window.openDetail = (post) => {
+            previousScreen = document.querySelector('.screen.active').id; 
+            document.getElementById('detail-category').innerText = post.category;
+            const tagEl = document.getElementById('detail-category');
+            tagEl.className = 'post-tag'; 
+            if(post.category === '정보') tagEl.classList.add('tag-info');
+            else if(post.category === '질문') tagEl.classList.add('tag-qna');
+            else tagEl.classList.add('tag-chat');
+
+            document.getElementById('detail-title').innerText = post.title;
+            document.getElementById('detail-content').innerText = post.content;
+            currentContent = post.content;
+            isTranslated = false;
+            window.showScreen('detail-screen');
+        };
+
+        window.translateContent = () => {
+            const el = document.getElementById('detail-content');
+            if(isTranslated) {
+                el.innerText = currentContent;
+                isTranslated = false;
+            } else {
+                el.innerText = "Translating...";
+                setTimeout(() => {
+                    el.innerText = "[AI Translated] " + currentContent + "\n(Demo)";
+                    isTranslated = true;
+                }, 500);
+            }
+        };
+
+        // 초기 스플래시 화면 유지 후 (로그인 상태에 따라 분기 처리됨)
+        setTimeout(() => {
+            if(!currentUser) window.showScreen('login-screen');
+        }, 2000);
+
+    </script>
+</body>
+</html>
