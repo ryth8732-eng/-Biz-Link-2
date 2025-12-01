@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Biz-Link (DB Save Version)</title>
+    <title>Biz-Link (Google Login)</title>
     <style>
         /* [CSS] 스타일 정의 */
         :root {
             --primary-color: #0056b3;
             --bg-color: #f4f6f8;
             --text-color: #333;
-            --danger-color: #e74c3c;
+            --google-color: #4285F4; /* 구글 브랜드 컬러 */
         }
 
         body {
@@ -44,6 +44,17 @@
             color: white; border: none; border-radius: 8px;
             font-weight: bold; cursor: pointer; margin-top: 10px;
         }
+        
+        /* 구글 로그인 버튼 스타일 */
+        .google-btn {
+            background-color: white;
+            color: #757575;
+            border: 1px solid #ddd;
+            display: flex; align-items: center; justify-content: center;
+            gap: 10px;
+        }
+        .google-btn:hover { background-color: #f8f8f8; }
+
         .input-field, textarea, select {
             width: 100%; padding: 12px; margin: 10px 0;
             border: 1px solid #ddd; border-radius: 8px;
@@ -88,7 +99,7 @@
             font-size: 10px; color: white; background-color: #999;
             padding: 2px 6px; border-radius: 4px; margin-right: 5px;
         }
-        .tag-info { background-color: #2ecc71; } /* 정보 게시판 태그 색 */
+        .tag-info { background-color: #2ecc71; }
         .tag-qna { background-color: #f1c40f; }
         .tag-chat { background-color: #3498db; }
 
@@ -133,348 +144,8 @@
             <p>경영학의 모든 것을 잇다</p>
         </div>
 
-        <!-- 2. 로그인 -->
+        <!-- 2. 로그인 (구글 전용) -->
         <div id="login-screen" class="screen">
-            <h2 style="margin-top: 50px;">로그인</h2>
-            <input type="email" id="login-email" class="input-field" placeholder="학교 이메일" value="student@univ.ac.kr">
-            <input type="password" class="input-field" placeholder="비밀번호" value="1234">
-            <button class="btn" onclick="handleLogin()">로그인</button>
-            <p id="db-status" style="text-align: center; font-size: 11px; color: #888; margin-top:10px;">Firebase 연결 대기중...</p>
-        </div>
-
-        <!-- 3. 메인 홈 -->
-        <div id="home-screen" class="screen">
-            <div class="header">Biz-Link <span>🔔</span></div>
-            
-            <!-- 메뉴 아이콘 (클릭 시 해당 게시판으로 이동) -->
-            <div class="menu-grid">
-                <div class="menu-item" onclick="showBoard('질문')">❓ 질문</div>
-                <div class="menu-item" onclick="showBoard('소통')">💬 소통</div>
-                <div class="menu-item" onclick="showBoard('정보')">📢 정보</div>
-            </div>
-            
-            <h3>🔥 전체 최신글</h3>
-            <div class="board-list" id="home-post-list">
-                <!-- 전체 글 로딩 -->
-            </div>
-            
-            <div class="tab-bar">
-                <div class="tab-item" onclick="showScreen('home-screen')">🏠 홈</div>
-                <div class="tab-item">🔍 검색</div>
-                <div class="tab-item" onclick="goToWrite()">✏️ 글쓰기</div>
-                <div class="tab-item">👤 MY</div>
-            </div>
-        </div>
-
-        <!-- [NEW] 게시판 상세 목록 화면 (필터링 된 화면) -->
-        <div id="board-screen" class="screen">
-            <div class="header">
-                <span class="back-btn" onclick="showScreen('home-screen')">⬅</span>
-                <span id="board-title">게시판 이름</span>
-                <span style="width:20px"></span>
-            </div>
-            <div class="board-list" id="filtered-post-list">
-                <!-- 필터링 된 글 로딩 -->
-            </div>
-            <button class="btn" onclick="goToWrite()" style="margin-top: 0;">이 게시판에 글쓰기</button>
-        </div>
-
-        <!-- 4. 글쓰기 화면 -->
-        <div id="write-screen" class="screen">
-            <div class="header">
-                <span class="back-btn" onclick="goBackFromWrite()">✖ 취소</span>
-                <span>글쓰기</span>
-                <span style="width: 20px;"></span>
-            </div>
-            <!-- 카테고리 선택 -->
-            <select id="post-category" class="input-field">
-                <option value="질문">❓ 질문 게시판</option>
-                <option value="소통">💬 소통 게시판</option>
-                <option value="정보">📢 정보 게시판</option>
-            </select>
-            <input type="text" id="post-title" class="input-field" placeholder="제목을 입력하세요">
-            <textarea id="post-content" class="input-field" style="height: 200px; resize: none;" placeholder="내용을 입력하세요."></textarea>
-            <button class="btn" onclick="submitPostWithAI()">등록하기</button>
-        </div>
-
-        <!-- 5. 상세 보기 -->
-        <div id="detail-screen" class="screen">
-            <div class="header">
-                <!-- 뒤로 가기 버튼 (이전 화면 기억) -->
-                <span class="back-btn" onclick="goBackFromDetail()">⬅</span>
-                <button id="translate-btn" onclick="translateContent()" style="background:none; border:none; font-size:20px;">🌏 번역</button>
-            </div>
-            <div style="margin-bottom: 10px;">
-                <span id="detail-category" class="post-tag">카테고리</span>
-            </div>
-            <h2 id="detail-title" style="margin-top: 5px;">제목</h2>
-            <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
-            <div id="detail-content" style="line-height: 1.6; min-height: 100px;">내용</div>
-        </div>
-
-    </div>
-
-    <!-- [JavaScript] Firebase & Logic -->
-    <script type="module">
-        // 1. Firebase SDK Import
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
-
-        // 2. Firebase Config (User Key)
-        const firebaseConfig = {
-            apiKey: "AIzaSyAHdHgTi3_eBM0kQSTHCKRLD86WSIJNs7s",
-            authDomain: "bize-8e4db.firebaseapp.com",
-            projectId: "bize-8e4db",
-            storageBucket: "bize-8e4db.firebasestorage.app",
-            messagingSenderId: "197857302682",
-            appId: "1:197857302682:web:7e5b38cb535719ec10a723",
-            measurementId: "G-K3B1RYMD2G"
-        };
-
-        // 3. Initialize
-        let db;
-        try {
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            console.log("✅ Firebase Connected");
-            setTimeout(() => {
-                const statusEl = document.getElementById('db-status');
-                if(statusEl) {
-                    statusEl.innerText = "✅ DB 연결됨 (저장 가능)";
-                    statusEl.style.color = "green";
-                }
-            }, 1000);
-        } catch (error) {
-            console.error("Firebase Error:", error);
-            alert("DB 연결 실패. 인터넷 상태를 확인하세요.");
-        }
-
-        // --- [전역 변수 및 네비게이션 관리] ---
-        let previousScreen = 'home-screen'; // 뒤로가기를 위한 변수
-
-        // 화면 이동 함수
-        window.showScreen = (screenId) => {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(screenId).classList.add('active');
-        };
-
-        // 뒤로 가기 로직
-        window.goBackFromWrite = () => {
-            window.showScreen(previousScreen); // 글쓰기 들어오기 전 화면으로 복귀
-        };
-
-        window.goBackFromDetail = () => {
-            window.showScreen(previousScreen); // 상세글 들어오기 전 화면으로 복귀
-        };
-
-        window.goToWrite = () => {
-            previousScreen = document.querySelector('.screen.active').id; // 현재 화면 저장
-            window.showScreen('write-screen');
-        }
-
-        window.handleLogin = () => {
-            window.showScreen('home-screen');
-            loadAllPosts(); // 로그인 성공 시 전체 글 불러오기
-        };
-
-        // --- [데이터 불러오기 (새로고침 해도 유지됨)] ---
-        let allPostsData = []; // 불러온 데이터를 메모리에 저장
-
-        // DB에서 글 불러오기 함수
-        async function fetchPostsFromDB() {
-            try {
-                // 날짜순 정렬 (최신순) - 인덱스 필요할 수 있으므로 에러나면 그냥 가져와서 JS로 정렬
-                const q = query(collection(db, "posts"), orderBy("date", "desc"));
-                const querySnapshot = await getDocs(q);
-                
-                allPostsData = [];
-                querySnapshot.forEach((doc) => {
-                    allPostsData.push({ id: doc.id, ...doc.data() });
-                });
-                return allPostsData;
-
-            } catch (e) {
-                console.log("인덱스 오류일 수 있음. 기본 정렬로 시도", e);
-                // 인덱스 에러 대비 백업 로직
-                const querySnapshot = await getDocs(collection(db, "posts"));
-                allPostsData = [];
-                querySnapshot.forEach((doc) => {
-                    allPostsData.push({ id: doc.id, ...doc.data() });
-                });
-                // JS로 정렬
-                allPostsData.sort((a,b) => b.date - a.date);
-                return allPostsData;
-            }
-        }
-
-        // 홈 화면에 전체 글 뿌리기
-        window.loadAllPosts = async () => {
-            const list = document.getElementById('home-post-list');
-            list.innerHTML = "<div style='text-align:center; margin-top:20px;'>로딩중...</div>";
-            
-            await fetchPostsFromDB(); // DB에서 가져오기
-
-            list.innerHTML = "";
-            if(allPostsData.length === 0) {
-                list.innerHTML = "<div style='text-align:center; padding:20px; color:#999'>등록된 글이 없습니다.</div>";
-                return;
-            }
-
-            allPostsData.forEach(post => {
-                list.appendChild(createPostElement(post));
-            });
-        };
-
-        // [NEW] 특정 게시판(정보, 질문 등)만 보여주기
-        window.showBoard = async (categoryName) => {
-            previousScreen = 'home-screen'; // 게시판에서 뒤로가면 홈으로
-            
-            // 화면 세팅
-            document.getElementById('board-title').innerText = categoryName + " 게시판";
-            window.showScreen('board-screen');
-            
-            const list = document.getElementById('filtered-post-list');
-            list.innerHTML = "<div style='text-align:center; margin-top:20px;'>로딩중...</div>";
-
-            // 데이터가 없으면 다시 불러옴
-            if(allPostsData.length === 0) await fetchPostsFromDB();
-
-            list.innerHTML = "";
-            
-            // 필터링 (카테고리 매칭)
-            const filtered = allPostsData.filter(post => post.category === categoryName);
-
-            if(filtered.length === 0) {
-                list.innerHTML = `<div style='text-align:center; padding:20px; color:#999'>${categoryName} 관련 글이 없습니다.</div>`;
-            } else {
-                filtered.forEach(post => {
-                    list.appendChild(createPostElement(post));
-                });
-            }
-        };
-
-        // 게시글 DOM 생성 헬퍼 함수
-        function createPostElement(post) {
-            const div = document.createElement('div');
-            div.className = 'post-item';
-            
-            // 태그 색상 결정
-            let tagClass = '';
-            if(post.category === '정보') tagClass = 'tag-info';
-            else if(post.category === '질문') tagClass = 'tag-qna';
-            else tagClass = 'tag-chat';
-
-            div.innerHTML = `
-                <div style="display:flex; align-items:center; margin-bottom:4px;">
-                    <span class="post-tag ${tagClass}">${post.category}</span>
-                    <strong style="font-size:14px;">${post.title}</strong>
-                </div>
-                <div style="font-size:12px; color:#666; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                    ${post.content}
-                </div>
-            `;
-            div.onclick = () => openDetail(post);
-            return div;
-        }
-
-        // --- [글쓰기 & AI 저장] ---
-        const BAD_WORDS = ['바보', '멍청이', 'shibal', 'hate', 'stupid'];
-
-        window.submitPostWithAI = async () => {
-            const category = document.getElementById('post-category').value;
-            const title = document.getElementById('post-title').value;
-            const content = document.getElementById('post-content').value;
-
-            if(!title || !content) return alert("내용을 모두 입력해주세요.");
-
-            // 1. AI 로딩 표시
-            document.getElementById('ai-loading').style.display = 'flex';
-
-            // 2. 검열 및 저장
-            setTimeout(async () => {
-                const isUnsafe = BAD_WORDS.some(word => content.includes(word) || title.includes(word));
-
-                if(isUnsafe) {
-                    document.getElementById('ai-loading').style.display = 'none';
-                    alert("🚨 [차단됨] 비방/욕설이 감지되었습니다.");
-                } else {
-                    try {
-                        // ★ DB 저장 (Firestore addDoc) ★
-                        await addDoc(collection(db, "posts"), {
-                            category: category,
-                            title: title,
-                            content: content,
-                            date: Date.now(), // 정렬용 타임스탬프
-                            author: "익명"
-                        });
-                        
-                        alert("✅ 저장 완료!");
-                        
-                        // 입력창 초기화
-                        document.getElementById('post-title').value = "";
-                        document.getElementById('post-content').value = "";
-                        document.getElementById('ai-loading').style.display = 'none';
-
-                        // 화면 갱신 및 이동
-                        if(previousScreen === 'board-screen') {
-                            // 특정 게시판에서 썼으면 거기로 복귀
-                            showBoard(category);
-                        } else {
-                            window.showScreen('home-screen');
-                            loadAllPosts();
-                        }
-
-                    } catch (e) {
-                        document.getElementById('ai-loading').style.display = 'none';
-                        console.error(e);
-                        alert("저장 중 오류가 발생했습니다.");
-                    }
-                }
-            }, 1000);
-        };
-
-        // --- [상세 & 번역] ---
-        let currentContent = "";
-        let isTranslated = false;
-
-        window.openDetail = (post) => {
-            previousScreen = document.querySelector('.screen.active').id; // 어디서 왔는지 기억
-            
-            document.getElementById('detail-category').innerText = post.category;
-            
-            // 태그 색상 적용
-            const tagEl = document.getElementById('detail-category');
-            tagEl.className = 'post-tag'; // 리셋
-            if(post.category === '정보') tagEl.classList.add('tag-info');
-            else if(post.category === '질문') tagEl.classList.add('tag-qna');
-            else tagEl.classList.add('tag-chat');
-
-            document.getElementById('detail-title').innerText = post.title;
-            document.getElementById('detail-content').innerText = post.content;
-            
-            currentContent = post.content;
-            isTranslated = false;
-            
-            window.showScreen('detail-screen');
-        };
-
-        window.translateContent = () => {
-            const el = document.getElementById('detail-content');
-            if(isTranslated) {
-                el.innerText = currentContent;
-                isTranslated = false;
-            } else {
-                el.innerText = "Reading content...";
-                setTimeout(() => {
-                    el.innerText = "[AI Translated] " + currentContent + "\n\n(This is a demo translation. Actual API would translate this text.)";
-                    isTranslated = true;
-                }, 500);
-            }
-        };
-
-        // 시작 (스플래시 -> 로그인)
-        setTimeout(() => window.showScreen('login-screen'), 1500);
-
-    </script>
-</body>
-</html>
+            <div style="margin-top: 100px; text-align: center;">
+                <h2 style="margin-bottom: 10px;">환영합니다!</h2>
+                <p style="color:#666; font-size:14px; 
