@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Biz-Link (Final Google Login)</title>
+    <title>Biz-Link (Updated Config)</title>
     <style>
         /* [CSS] 스타일 정의 */
         :root {
@@ -174,4 +174,40 @@
                 <div class="tab-item" onclick="showScreen('home-screen')">🏠 홈</div>
                 <div class="tab-item">🔍 검색</div>
                 <div class="tab-item" onclick="goToWrite()">✏️ 글쓰기</div>
-                <div class="tab-item" onclick="handleLogout()">🚪 
+                <div class="tab-item" onclick="handleLogout()">🚪 로그아웃</div>
+            </div>
+        </div>
+
+        <!-- 4. 게시판 상세 목록 -->
+        <div id="board-screen" class="screen">
+            <div class="header">
+                <span class="back-btn" onclick="showScreen('home-screen')">⬅</span>
+                <span id="board-title">게시판 이름</span>
+                <span style="width:20px"></span>
+            </div>
+            <div class="board-list" id="filtered-post-list"></div>
+            <button class="btn" onclick="goToWrite()" style="margin-top: 0;">이 게시판에 글쓰기</button>
+        </div>
+
+        <!-- 5. 글쓰기 화면 -->
+        <div id="write-screen" class="screen">
+            <div class="header">
+                <span class="back-btn" onclick="goBackFromWrite()">✖ 취소</span>
+                <span>글쓰기</span>
+                <span style="width: 20px;"></span>
+            </div>
+            <select id="post-category" class="input-field">
+                <option value="질문">❓ 질문 게시판</option>
+                <option value="소통">💬 소통 게시판</option>
+                <option value="정보">📢 정보 게시판</option>
+            </select>
+            <input type="text" id="post-title" class="input-field" placeholder="제목을 입력하세요">
+            <textarea id="post-content" class="input-field" style="height: 200px; resize: none;" placeholder="내용을 입력하세요."></textarea>
+            <button class="btn" onclick="submitPostWithAI()">등록하기</button>
+        </div>
+
+        <!-- 6. 상세 보기 -->
+        <div id="detail-screen" class="screen">
+            <div class="header">
+                <span class="back-btn" onclick="goBackFromDetail()">⬅</span>
+                <button id="translate-btn" onclick="translateContent()" style="background:none; border:none; font-size:20px;">🌏 
