@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biz-Link (Firebase Connected)</title>
+    <style>
+        /* [CSS] 스타일 정의 */
+        :root {
+            --primary-color: #0056b3;
+            --bg-color: #f4f6f8;
+            --text-color: #333;
+            --danger-color: #e74c3c;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex; justify-content: center;
+            height: 100vh; overflow: hidden;
+        }
+
+        #app-container {
+            width: 100%; max-width: 400px;
+            background-color: white; height: 100%;
+            position: relative;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            display: flex; flex-direction: column;
+        }
+
+        .screen {
+            display: none; flex-direction: column;
+            height: 100%; padding: 20px;
+            box-sizing: border-box; overflow-y: auto;
+        }
+        .active { display: flex; }
+
+        .btn {
+            width: 100%; padding: 15px;
+            background-color: var(--primary-color);
+            color: white; border: none; border-radius: 8px;
+            font-weight: bold; cursor: pointer; margin-top: 10px;
+        }
+        .input-field, textarea {
+            width: 100%; padding: 12px; margin: 10px 0;
+            border: 1px solid #ddd; border-radius: 8px;
+            box-sizing: border-box; font-family: inherit;
+        }
+
+        /* 스플래시 & 로그인 */
+        #splash-screen {
+            justify-content: center; align-items: center;
+            background-color: var(--primary-color); color: white; text-align: center;
+        }
+
+        /* 메인 홈 */
+        .header {
+            font-size: 20px; font-weight: bold; margin-bottom: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .menu-grid {
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px;
+        }
+        .menu-item {
+            background-color: #eef2f5; padding: 20px; text-align: center;
+            border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer;
+        }
+        .hot-board {
+            background-color: white; border: 1px solid #eee;
+            border-radius: 12px; padding: 15px;
+        }
+        .post-item {
+            border-bottom: 1px solid #eee; padding: 15px 0; cursor: pointer;
+        }
+
+        /* 상세 & 글쓰기 & 로딩 */
+        #translate-btn { background: none; border: none; font-size: 24px; cursor: pointer; }
+        
+        #ai-loading {
+            display: none;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.9); z-index: 99;
+            flex-direction: column; justify-content: center; align-items: center;
+            text-align: center;
+        }
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid #eee;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* 하단 탭바 */
+        .tab-bar {
+            margin-top: auto; height: 60px; border-top: 1px solid #eee;
+            display: flex; justify-content: space-around; align-items: center;
+            background-color: white; flex-shrink: 0;
+        }
+        .tab-item { font-size: 12px; color: #888; text-align: center; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        
+        <!-- AI 분석 로딩창 -->
+        <div id="ai-loading">
+            <div class="spinner"></div>
+            <h3 style="color: var(--primary-color);">AI Clean Bot</h3>
+            <p>게시글의 유해성을<br>검사하고 있습니다...</p>
+        </div>
+
+        <!-- 1. 스플래시 -->
+        <div id="splash-screen" class="screen active">
+            <h1>Biz-Link</h1>
+            <p>경영학의 모든 것을 잇다</p>
+        </div>
+
+        <!-- 2. 로그인 -->
+        <div id="login-screen" class="screen">
+            <h2 style="margin-top: 50px;">로그인</h2>
+            <input type="email" id="email" class="input-field" placeholder="학교 이메일 (@univ.ac.kr)" value="student@univ.ac.kr">
+            <input type="password" id="password" class="input-field" placeholder="비밀번호" value="1234">
+            <button class="btn" onclick="handleLogin()">로그인</button>
+            <p id="db-status" style="text-align: center; font-size: 11px; color: #888; margin-top:10px;">Firebase 연결 대기중...</p>
+        </div>
+
+        <!-- 3. 메인 홈 -->
+        <div id="home-screen" class="screen">
+            <div class="header">Biz-Link <span>🔔</span></div>
+            <div class="menu-grid">
+                <div class="menu-item">❓ 질문</div>
+                <div class="menu-item">💬 소통</div>
+                <div class="menu-item">📢 정보</div>
+            </div>
+            <h3>🔥 실시간 Hot</h3>
+            <div class="hot-board" id="post-list"></div>
+            
+            <div class="tab-bar">
+                <div class="tab-item" onclick="showScreen('home-screen')">🏠 홈</div>
+                <div class="tab-item">🔍 검색</div>
+                <div class="tab-item" onclick="showScreen('write-screen')">✏️ 글쓰기</div>
+                <div class="tab-item">👤 MY</div>
+            </div>
+        </div>
+
+        <!-- 4. 글쓰기 화면 -->
+        <div id="write-screen" class="screen">
+            <div class="header">
+                <span onclick="showScreen('home-screen')" style="cursor:pointer;">✖ 취소</span>
+                <span>글쓰기</span>
+                <span style="width: 30px;"></span>
+            </div>
+            <select class="input-field">
+                <option>질문 게시판</option>
+                <option>소통 게시판</option>
+            </select>
+            <input type="text" id="post-title" class="input-field" placeholder="제목을 입력하세요">
+            <textarea id="post-content" class="input-field" style="height: 200px; resize: none;" placeholder="내용을 입력하세요. (욕설, 비방 금지)"></textarea>
+            <button class="btn" onclick="submitPostWithAI()">등록하기</button>
+        </div>
+
+        <!-- 5. 상세 보기 -->
+        <div id="detail-screen" class="screen">
+            <div class="header">
+                <span onclick="showScreen('home-screen')" style="cursor:pointer;">⬅</span>
+                <button id="translate-btn" onclick="translateContent()">🌏</button>
+            </div>
+            <h2 id="detail-title">제목</h2>
+            <div id="detail-content" style="line-height: 1.6;">내용</div>
+        </div>
+
+    </div>
+
+    <!-- [JavaScript] Firebase & Logic -->
+    <script type="module">
+        // 1. Firebase SDK Import
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+        // 2. User's Configuration (입력해주신 키 적용)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAHdHgTi3_eBM0kQSTHCKRLD86WSIJNs7s",
+            authDomain: "bize-8e4db.firebaseapp.com",
+            projectId: "bize-8e4db",
+            storageBucket: "bize-8e4db.firebasestorage.app",
+            messagingSenderId: "197857302682",
+            appId: "1:197857302682:web:7e5b38cb535719ec10a723",
+            measurementId: "G-K3B1RYMD2G"
+        };
+
+        // 3. Firebase Initialize
+        let db;
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            console.log("✅ Firebase Connected Successfully!");
+            
+            // 연결 상태 UI 업데이트 (로그인 화면 아래 텍스트)
+            setTimeout(() => {
+                const statusEl = document.getElementById('db-status');
+                if(statusEl) {
+                    statusEl.innerText = "✅ Firebase 서버 연결됨";
+                    statusEl.style.color = "green";
+                }
+            }, 1000);
+
+        } catch (error) {
+            console.error("❌ Firebase Connection Failed:", error);
+            alert("Firebase 연결 오류: 콘솔을 확인하세요.");
+        }
+
+        // --- [전역 함수 설정] ---
+        // 모듈(module) 스코프 문제 해결을 위해 window 객체에 함수 할당
+        window.showScreen = (screenId) => {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        };
+
+        window.handleLogin = () => {
+            // 로그인 시뮬레이션
+            window.showScreen('home-screen');
+            renderPosts();
+        };
+
+        // --- [데이터 관리] ---
+        // 초기에는 로컬 데이터로 보여주고, 실제 DB 구현 시 getDocs(collection(db, "posts")) 로 교체 가능
+        const localPosts = [
+            { id: 1, title: "재무관리 3장 질문", content: "CAPM 공식 설명 부탁드립니다." },
+            { id: 2, title: "경영 돕바 공구", content: "이번 학기 과잠 공구합니다." }
+        ];
+
+        window.renderPosts = () => {
+            const list = document.getElementById('post-list');
+            list.innerHTML = "";
+            [...localPosts].reverse().forEach(post => {
+                const div = document.createElement('div');
+                div.className = 'post-item';
+                div.innerHTML = `<strong>${post.title}</strong><br><span style="font-size:12px; color:#666;">${post.content.substring(0, 25)}...</span>`;
+                div.onclick = () => openDetail(post);
+                list.appendChild(div);
+            });
+        };
+
+        // --- [AI 검열 로직] ---
+        const BAD_WORDS = ['바보', '멍청이', 'shibal', 'hate', 'stupid'];
+
+        window.submitPostWithAI = async () => {
+            const title = document.getElementById('post-title').value;
+            const content = document.getElementById('post-content').value;
+
+            if(!title || !content) return alert("내용을 입력하세요.");
+
+            // 1. AI 로딩 표시
+            document.getElementById('ai-loading').style.display = 'flex';
+
+            setTimeout(async () => {
+                document.getElementById('ai-loading').style.display = 'none';
+
+                // 2. 검열 체크
+                const isUnsafe = BAD_WORDS.some(word => content.includes(word) || title.includes(word));
+
+                if(isUnsafe) {
+                    alert("🚨 [차단됨] 비방/욕설이 감지되었습니다.");
+                } else {
+                    // 3. 통과 시 (여기서 나중에 실제 DB 저장을 구현하면 됩니다)
+                    // 예: await addDoc(collection(db, "posts"), { title, content, date: new Date() });
+                    
+                    alert("✅ 등록 완료 (AI 검열 통과)");
+                    localPosts.push({ id: Date.now(), title, content }); // 로컬 목록에 추가
+                    
+                    document.getElementById('post-title').value = "";
+                    document.getElementById('post-content').value = "";
+                    window.showScreen('home-screen');
+                    renderPosts();
+                }
+            }, 1500); // 1.5초 딜레이
+        };
+
+        // --- [상세 & 번역] ---
+        let currentContent = "";
+        let isTranslated = false;
+
+        window.openDetail = (post) => {
+            document.getElementById('detail-title').innerText = post.title;
+            document.getElementById('detail-content').innerText = post.content;
+            currentContent = post.content;
+            isTranslated = false;
+            window.showScreen('detail-screen');
+        };
+
+        window.translateContent = () => {
+            const el = document.getElementById('detail-content');
+            if(isTranslated) {
+                el.innerText = currentContent;
+                isTranslated = false;
+            } else {
+                el.innerText = "[Translating...] " + currentContent;
+                setTimeout(() => {
+                    el.innerText = "This content has been translated by AI. (Demo)";
+                    isTranslated = true;
+                }, 500);
+            }
+        };
+
+        // 앱 시작 (스플래시 -> 로그인)
+        setTimeout(() => window.showScreen('login-screen'), 2000);
+
+    </script>
+</body>
+</html>
